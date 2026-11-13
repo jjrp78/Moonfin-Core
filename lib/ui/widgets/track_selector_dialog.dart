@@ -44,7 +44,8 @@ Future<T?> showStyledPlayerDialog<T>(
             mediaQuery.viewInsets.bottom,
             keyboardSpace,
           );
-          final maxDialogHeight = mediaQuery.size.height -
+          final maxDialogHeight =
+              mediaQuery.size.height -
               mediaQuery.padding.vertical -
               effectiveBottomInset -
               24;
@@ -72,7 +73,12 @@ Future<T?> showStyledPlayerDialog<T>(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding: EdgeInsets.fromLTRB(24, 0, 24, subtitle != null ? 4 : 12),
+                  padding: EdgeInsets.fromLTRB(
+                    24,
+                    0,
+                    24,
+                    subtitle != null ? 4 : 12,
+                  ),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: titleImage == null
@@ -100,15 +106,23 @@ Future<T?> showStyledPlayerDialog<T>(
                       ),
                     ),
                   ),
-                Container(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+                Container(
+                  height: 1,
+                  color: Colors.white.withValues(alpha: 0.08),
+                ),
                 const SizedBox(height: 8),
                 Flexible(child: builder(dialogContext)),
                 if (showCancel) ...[
                   const SizedBox(height: 4),
-                  Container(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+                  Container(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
                   const SizedBox(height: 4),
                   _TrackRow(
-                    option: TrackOption(label: AppLocalizations.of(dialogContext).cancel),
+                    option: TrackOption(
+                      label: AppLocalizations.of(dialogContext).cancel,
+                    ),
                     isSelected: false,
                     onTap: () => Navigator.pop(dialogContext),
                     dimmed: true,
@@ -232,32 +246,80 @@ class TrackSelectorDialog {
       // The footer rides along as the last row rather than sitting under the
       // list, so a long track list keeps the full height and the footer is
       // something you scroll down to instead of something in the way.
-      builder: (dialogCtx) => ListView.builder(
-        shrinkWrap: true,
-        itemCount: options.length + (footer == null ? 0 : 1),
-        itemBuilder: (_, i) => i == options.length
-            ? footer!
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (i == dividerBefore)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Divider(
-                        height: 1,
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                  _TrackRow(
-                    option: options[i],
-                    isSelected: selectedIndex == i,
-                    autofocus:
-                        selectedIndex == i || (selectedIndex == null && i == 0),
-                    onTap: () => Navigator.pop(dialogCtx, i),
-                  ),
-                ],
-              ),
+      builder: (dialogCtx) => _TrackSelectorList(
+        options: options,
+        selectedIndex: selectedIndex,
+        dividerBefore: dividerBefore,
+        footer: footer,
+        onSelected: (index) => Navigator.pop(dialogCtx, index),
       ),
+    );
+  }
+}
+
+class _TrackSelectorList extends StatefulWidget {
+  final List<TrackOption> options;
+  final int? selectedIndex;
+  final int? dividerBefore;
+  final Widget? footer;
+  final ValueChanged<int> onSelected;
+
+  const _TrackSelectorList({
+    required this.options,
+    required this.selectedIndex,
+    required this.dividerBefore,
+    required this.footer,
+    required this.onSelected,
+  });
+
+  @override
+  State<_TrackSelectorList> createState() => _TrackSelectorListState();
+}
+
+class _TrackSelectorListState extends State<_TrackSelectorList> {
+  final _firstOptionFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.options.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _firstOptionFocus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _firstOptionFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: widget.options.length + (widget.footer == null ? 0 : 1),
+      itemBuilder: (_, i) => i == widget.options.length
+          ? widget.footer!
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (i == widget.dividerBefore)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Divider(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                _TrackRow(
+                  option: widget.options[i],
+                  isSelected: widget.selectedIndex == i,
+                  focusNode: i == 0 ? _firstOptionFocus : null,
+                  onTap: () => widget.onSelected(i),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -266,6 +328,7 @@ class _TrackRow extends StatefulWidget {
   final TrackOption option;
   final bool isSelected;
   final VoidCallback onTap;
+  final FocusNode? focusNode;
   final bool autofocus;
   final bool dimmed;
 
@@ -273,6 +336,7 @@ class _TrackRow extends StatefulWidget {
     required this.option,
     required this.isSelected,
     required this.onTap,
+    this.focusNode,
     this.autofocus = false,
     this.dimmed = false,
   });
@@ -283,13 +347,18 @@ class _TrackRow extends StatefulWidget {
 
 class _TrackRowState extends State<_TrackRow> {
   final _prefs = GetIt.instance<UserPreferences>();
-  final _focusNode = FocusNode();
+  late final FocusNode _focusNode;
+  late final bool _ownsFocusNode;
   bool _isFocused = false;
 
   @override
   void initState() {
     super.initState();
-    _focusNode.addListener(() => setState(() => _isFocused = _focusNode.hasFocus));
+    _ownsFocusNode = widget.focusNode == null;
+    _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode.addListener(
+      () => setState(() => _isFocused = _focusNode.hasFocus),
+    );
     if (widget.autofocus) {
       // On TV a navigator observer focuses a new route's first focusable
       // after autofocus resolves, so the selected row takes it back here.
@@ -301,7 +370,7 @@ class _TrackRowState extends State<_TrackRow> {
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    if (_ownsFocusNode) _focusNode.dispose();
     super.dispose();
   }
 
@@ -309,11 +378,11 @@ class _TrackRowState extends State<_TrackRow> {
   Widget build(BuildContext context) {
     final focusColor = Color(_prefs.get(UserPreferences.focusColor).colorValue);
     final labelColor = widget.dimmed
-      ? Colors.white.withValues(alpha: 0.5)
-      : Colors.white.withValues(alpha: _isFocused ? 0.95 : 0.8);
+        ? Colors.white.withValues(alpha: 0.5)
+        : Colors.white.withValues(alpha: _isFocused ? 0.95 : 0.8);
     final subtitleColor = widget.dimmed
-      ? Colors.white.withValues(alpha: 0.35)
-      : Colors.white.withValues(alpha: _isFocused ? 0.72 : 0.6);
+        ? Colors.white.withValues(alpha: 0.35)
+        : Colors.white.withValues(alpha: _isFocused ? 0.72 : 0.6);
 
     return Focus(
       focusNode: _focusNode,
@@ -331,7 +400,9 @@ class _TrackRowState extends State<_TrackRow> {
         onTap: widget.onTap,
         child: Container(
           width: double.infinity,
-          color: _isFocused ? focusColor.withValues(alpha: 0.2) : Colors.transparent,
+          color: _isFocused
+              ? focusColor.withValues(alpha: 0.2)
+              : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           child: Row(
             children: [
@@ -343,12 +414,20 @@ class _TrackRowState extends State<_TrackRow> {
               else if (widget.isSelected)
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
-                  child: Icon(Icons.check_circle, color: AppColorScheme.accent, size: 20),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: AppColorScheme.accent,
+                    size: 20,
+                  ),
                 )
               else
                 const Padding(
                   padding: EdgeInsets.only(right: 12),
-                  child: Icon(Icons.radio_button_unchecked, color: Colors.white38, size: 20),
+                  child: Icon(
+                    Icons.radio_button_unchecked,
+                    color: Colors.white38,
+                    size: 20,
+                  ),
                 ),
               Expanded(
                 child: Column(
@@ -364,10 +443,9 @@ class _TrackRowState extends State<_TrackRow> {
                         widget.option.label,
                         style: TextStyle(fontSize: 16, color: labelColor),
                         maxLines: widget.option.labelMaxLines,
-                        overflow:
-                            widget.option.labelMaxLines == 1
-                                ? TextOverflow.ellipsis
-                                : null,
+                        overflow: widget.option.labelMaxLines == 1
+                            ? TextOverflow.ellipsis
+                            : null,
                       ),
                     if (widget.option.subtitle != null)
                       (widget.option.scrollSubtitle
@@ -394,10 +472,12 @@ class _TrackRowState extends State<_TrackRow> {
                           spacing: 6,
                           runSpacing: 6,
                           children: widget.option.badges
-                              .map((badge) => _OptionBadge(
-                                    label: badge,
-                                    dimmed: widget.dimmed,
-                                  ))
+                              .map(
+                                (badge) => _OptionBadge(
+                                  label: badge,
+                                  dimmed: widget.dimmed,
+                                ),
+                              )
                               .toList(growable: false),
                         ),
                       ),

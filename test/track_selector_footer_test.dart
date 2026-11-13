@@ -22,7 +22,11 @@ void main() {
 
   tearDown(() => GetIt.instance.reset());
 
-  Future<void> openSelector(WidgetTester tester, int trackCount) async {
+  Future<void> openSelector(
+    WidgetTester tester,
+    int trackCount, {
+    int? selectedIndex,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -36,6 +40,7 @@ void main() {
                 for (var i = 0; i < trackCount; i++)
                   TrackOption(label: 'Track $i'),
               ],
+              selectedIndex: selectedIndex,
               footer: const SizedBox(
                 key: _footerKey,
                 height: 120,
@@ -80,5 +85,18 @@ void main() {
 
     expect(find.byKey(_footerKey).hitTestable(), findsOneWidget);
     expect(find.text('Track 1'), findsOneWidget);
+  });
+
+  testWidgets('opens long subtitle lists with focus on a visible first row', (
+    tester,
+  ) async {
+    await openSelector(tester, 40, selectedIndex: 30);
+
+    final firstRowFocus = tester.widget<Focus>(
+      find
+          .ancestor(of: find.text('Track 0'), matching: find.byType(Focus))
+          .first,
+    );
+    expect(firstRowFocus.focusNode!.hasFocus, isTrue);
   });
 }

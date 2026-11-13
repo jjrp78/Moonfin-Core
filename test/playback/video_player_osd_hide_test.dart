@@ -285,10 +285,16 @@ void main() {
         return call.method.startsWith('is') ? false : null;
       },
     );
-    addTearDown(() => tester.binding.defaultBinaryMessenger
-        .setMockMethodCallHandler(const MethodChannel('window_manager'), null));
-    await GetIt.instance<UserPreferences>()
-        .set(UserPreferences.cinemaModeSkipEnabled, true);
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('window_manager'),
+        null,
+      ),
+    );
+    await GetIt.instance<UserPreferences>().set(
+      UserPreferences.cinemaModeSkipEnabled,
+      true,
+    );
     manager.queueService.setQueue([
       {'Id': 'trailer', '__moonfinIsPreroll': true, 'RunTimeTicks': 900000000},
     ]);
@@ -327,10 +333,16 @@ void main() {
         return call.method.startsWith('is') ? false : null;
       },
     );
-    addTearDown(() => tester.binding.defaultBinaryMessenger
-        .setMockMethodCallHandler(const MethodChannel('window_manager'), null));
-    await GetIt.instance<UserPreferences>()
-        .set(UserPreferences.cinemaModeSkipEnabled, true);
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('window_manager'),
+        null,
+      ),
+    );
+    await GetIt.instance<UserPreferences>().set(
+      UserPreferences.cinemaModeSkipEnabled,
+      true,
+    );
     manager.queueService.setQueue([
       {'Id': 'trailer', '__moonfinIsPreroll': true, 'RunTimeTicks': 900000000},
     ]);
@@ -363,15 +375,23 @@ void main() {
         return call.method.startsWith('is') ? false : null;
       },
     );
-    addTearDown(() => tester.binding.defaultBinaryMessenger
-        .setMockMethodCallHandler(const MethodChannel('window_manager'), null));
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('window_manager'),
+        null,
+      ),
+    );
     // Leaving playback resets the orientations, which waits on this channel.
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (_) async => null,
     );
-    addTearDown(() => tester.binding.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null));
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
     manager.queueService.setQueue([
       {'Id': 'trailer', '__moonfinIsPreroll': true, 'RunTimeTicks': 900000000},
     ]);
@@ -494,7 +514,10 @@ void main() {
   ) async {
     final prefs = GetIt.instance<UserPreferences>();
     await prefs.set(UserPreferences.cinemaModeSkipEnabled, true);
-    await prefs.set(UserPreferences.mediaSegmentActions, 'intro:skip,outro:skip');
+    await prefs.set(
+      UserPreferences.mediaSegmentActions,
+      'intro:skip,outro:skip',
+    );
     (GetIt.instance<MediaServerClient>() as _Client).items.segments = [
       segmentJson(id: 'intro', type: 'Intro', startMs: 1000, endMs: 2000),
       segmentJson(id: 'outro', type: 'Outro', startMs: 3000, endMs: 4000),
@@ -507,7 +530,9 @@ void main() {
           'Id': 'short',
           '__moonfinIsPreroll': true,
           'RunTimeTicks': 50000000,
-          'Chapters': [{'StartPositionTicks': 0}],
+          'Chapters': [
+            {'StartPositionTicks': 0},
+          ],
         },
       ),
     ]);
@@ -675,7 +700,8 @@ void main() {
               'ImageTag': 'abc',
             },
             {
-              'Name': 'Escape through the asteroid field with the cruiser behind',
+              'Name':
+                  'Escape through the asteroid field with the cruiser behind',
               'StartPositionTicks': 3600000000,
             },
           ],
@@ -1098,7 +1124,8 @@ void main() {
 
     testWidgets('sit in the middle of the video by default', (tester) async {
       await mountPlayer(tester);
-      final height = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+      final height =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio;
       expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
       expect(playButtonY(tester), closeTo(height / 2, height * 0.1));
       await tester.pumpWidget(const SizedBox());
@@ -1110,7 +1137,8 @@ void main() {
         PlayerTransportPosition.docked,
       );
       await mountPlayer(tester);
-      final height = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+      final height =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio;
       expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
       expect(playButtonY(tester), greaterThan(height * 0.75));
       await tester.pumpWidget(const SizedBox());
@@ -1179,6 +1207,36 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
   });
+
+  testWidgets(
+    'TV transport hides controls until Down explicitly reveals them',
+    (tester) async {
+      PlatformDetection.setTvMode(true);
+      addTearDown(() => PlatformDetection.setTvMode(false));
+
+      await mountPlayer(tester);
+      manager.state.setPlaying(true);
+      await tester.pump();
+      expect(find.byType(Slider), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.mediaPlayPause);
+      await tester.pump();
+      expect(find.byType(Slider), findsNothing);
+
+      manager.state.setPlaying(false);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.mediaPlayPause);
+      await tester.pump();
+      expect(find.byType(Slider), findsNothing);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      expect(find.byType(Slider), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
   // Issue #1305: with the controls hidden, a keyboard seek only shows how far
   // it went.

@@ -35,7 +35,10 @@ plugins {
     // push_messaging_service.dart:38 returns unless PlatformDetection.isMobile,
     // and the initializeApp call is try/caught regardless.
     id("com.google.gms.google-services")
-        .apply(System.getenv("MOONFIN_TEST_ID_SUFFIX").isNullOrEmpty())
+        .apply(
+            System.getenv("MOONFIN_TEST_ID_SUFFIX").isNullOrEmpty() &&
+                System.getenv("MOONFIN_SKIP_GOOGLE_SERVICES") != "true",
+        )
     // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -79,7 +82,7 @@ android {
 
     flavorDimensions += "device"
     productFlavors {
-        val baseAppId = "org.moonfin.androidtv"
+        val baseAppId = "org.moonfin.androidtv.subtitlefix"
         val baseAppName = "Moonfin"
         // Optional application-id suffix for on-device testing, set through the
         // environment so an unset build is byte-identical to before:
