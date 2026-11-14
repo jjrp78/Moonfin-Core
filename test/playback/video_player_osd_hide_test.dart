@@ -509,6 +509,36 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('TV skip intro leaves controls hidden', (tester) async {
+    PlatformDetection.setTvMode(true);
+    addTearDown(() => PlatformDetection.setTvMode(false));
+    client.items.segments = [
+      segmentJson(id: 'intro', type: 'Intro', startMs: 0, endMs: 90000),
+    ];
+    manager.queueService.setQueue([
+      const AggregatedItem(
+        id: 'ep1',
+        serverId: 'server',
+        rawData: {'Id': 'ep1', 'Type': 'Episode'},
+      ),
+    ]);
+    await mountPlayer(tester);
+    manager.state.setPlaying(true);
+    manager.state.setPosition(const Duration(seconds: 5));
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(SkipSegmentOverlay), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.byType(Slider), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pump();
+    expect(find.byType(Slider), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('short Cinema pre-roll blocks ordinary intro/outro actions', (
     tester,
   ) async {

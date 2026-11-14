@@ -2813,7 +2813,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _skipSegment = null;
       _skipTo = null;
     });
-    _showControls(focusSeekbar: true);
+    if (!PlatformDetection.isTV) {
+      _showControls(focusSeekbar: true);
+    }
   }
 
   void _dismissSkipSegment() {
