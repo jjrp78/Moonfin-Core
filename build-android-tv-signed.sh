@@ -55,6 +55,7 @@ docker run --rm --user 0:0 --entrypoint /bin/bash \
       trap cleanup EXIT
       install -m 600 /signing/'"$SIGNING_NAME"'.properties android/keystore.properties
       install -m 600 /signing/'"$SIGNING_NAME"'.jks android/app/release.keystore
+      rm -rf build
       export PATH=/home/flutter/sdks/flutter/bin:/home/flutter/sdks/flutter/bin/cache/dart-sdk/bin:$PATH
       flutter build apk --release --flavor androidTv \
         --build-name '"$TV_VERSION"' \
