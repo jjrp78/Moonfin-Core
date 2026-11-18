@@ -9,6 +9,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../data/models/series_recording_episodes.dart';
+import '../../../data/services/iptv_recording_guard.dart';
 import '../../../data/viewmodels/live_tv_guide_view_model.dart';
 import '../../../data/services/user_data_sync.dart';
 import '../../../l10n/app_localizations.dart';
@@ -2507,6 +2508,16 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
     }
     if (widget.miniPlayerMode) {
       Navigator.of(context).pop(channelId);
+      return;
+    }
+
+    // A positive framework result protects its active tuner. A failed check
+    // intentionally falls through, so normal Jellyfin playback is never
+    // blocked by the optional local recording framework.
+    final recording = await IptvRecordingGuard().check();
+    if (!mounted) return;
+    if (recording.active) {
+      await context.push(Destinations.liveTvCurrentRecording);
       return;
     }
 

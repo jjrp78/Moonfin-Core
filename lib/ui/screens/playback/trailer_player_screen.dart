@@ -23,8 +23,16 @@ import '../../widgets/web_youtube_trailer.dart';
 class TrailerPlayerScreen extends StatefulWidget {
   final String? videoId;
   final String? trailerUrl;
+  /// Opens [trailerUrl] directly rather than attempting YouTube resolution.
+  /// Used for trusted local HLS feeds that are not trailers.
+  final bool directStream;
 
-  const TrailerPlayerScreen({super.key, this.videoId, this.trailerUrl});
+  const TrailerPlayerScreen({
+    super.key,
+    this.videoId,
+    this.trailerUrl,
+    this.directStream = false,
+  });
 
   @override
   State<TrailerPlayerScreen> createState() => _TrailerPlayerScreenState();
@@ -96,6 +104,7 @@ class _TrailerPlayerScreenState extends State<TrailerPlayerScreen> {
   }
 
   String? _resolvedVideoId() {
+    if (widget.directStream) return null;
     final videoId = widget.videoId;
     if (videoId != null && videoId.isNotEmpty) {
       return videoId;
@@ -172,7 +181,11 @@ class _TrailerPlayerScreenState extends State<TrailerPlayerScreen> {
     bool useYouTubeHeaders = false;
     String? audioLanguage;
 
-    if (widget.videoId != null && widget.videoId!.isNotEmpty) {
+    if (widget.directStream &&
+        widget.trailerUrl != null &&
+        widget.trailerUrl!.isNotEmpty) {
+      streamUrl = widget.trailerUrl;
+    } else if (widget.videoId != null && widget.videoId!.isNotEmpty) {
       sponsorBlockVideoId = widget.videoId;
       final stream = await YouTubeStreamResolver.resolve(
         widget.videoId!,

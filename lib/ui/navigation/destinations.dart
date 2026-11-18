@@ -110,6 +110,7 @@ class Destinations {
   static const liveTvSchedule = '/live-tv/schedule';
   static const liveTvRecordings = '/live-tv/recordings';
   static const liveTvSeriesRecordings = '/live-tv/series-recordings';
+  static const liveTvCurrentRecording = '/live-tv/current-recording';
   static const liveTvPlayer = '/live-tv/player';
 
   // Playback
@@ -439,6 +440,7 @@ class Destinations {
   /// the reader and its overlays, live TV, or a game.
   static bool isPlayerRoute(String path) =>
       path.startsWith('/player/') ||
+      path == liveTvCurrentRecording ||
       path == liveTvPlayer ||
       path.startsWith('/game-player/');
 

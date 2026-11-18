@@ -59,6 +59,7 @@ import '../screens/seerr/seerr_person_screen.dart';
 import '../screens/seerr/seerr_requests_screen.dart';
 import '../screens/livetv/live_tv_channel_player_loader.dart';
 import '../screens/livetv/live_tv_guide_screen.dart';
+import '../screens/livetv/iptv_recording_gate.dart';
 import '../screens/livetv/live_tv_player_screen.dart';
 import '../../data/viewmodels/book_browse_view_model.dart' show BookScope;
 import '../../data/viewmodels/live_tv_guide_view_model.dart';
@@ -642,6 +643,16 @@ final appRouter = GoRouter(
           builder: (context, state) => const LiveTvSeriesRecordingsScreen(),
         ),
         GoRoute(
+          path: 'current-recording',
+          pageBuilder: (context, state) => _opaqueFullScreenPage<void>(
+            state: state,
+            child: const IptvRecordingGate(
+              openCurrentRecordingOnly: true,
+              child: SizedBox.shrink(),
+            ),
+          ),
+        ),
+        GoRoute(
           path: 'player',
           pageBuilder: (context, state) {
             final extra = state.extra is Map<String, dynamic>
@@ -670,7 +681,10 @@ final appRouter = GoRouter(
                 channelId: state.uri.queryParameters['channelId'] ?? '',
               );
             }
-            return _opaqueFullScreenPage<void>(state: state, child: child);
+            return _opaqueFullScreenPage<void>(
+              state: state,
+              child: IptvRecordingGate(child: child),
+            );
           },
         ),
       ],

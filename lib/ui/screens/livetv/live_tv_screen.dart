@@ -48,6 +48,11 @@ class LiveTvScreen extends StatelessWidget {
         : 0.0;
     final items = <({IconData icon, String title, VoidCallback onTap})>[
       (
+        icon: Icons.fiber_manual_record,
+        title: 'Current IPTV recording',
+        onTap: () => context.push(Destinations.liveTvCurrentRecording),
+      ),
+      (
         icon: Icons.tv,
         title: l10n.guide,
         onTap: () => context.push(Destinations.liveTvGuide),

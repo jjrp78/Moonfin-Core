@@ -12,6 +12,7 @@ import 'package:server_core/server_core.dart';
 import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:volume_controller/volume_controller.dart';
 
+import '../../../data/services/iptv_recording_guard.dart';
 import '../../../data/services/log_service.dart';
 import '../../../data/services/user_data_sync.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
@@ -1034,6 +1035,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     if (_isSwitching) return;
     _isSwitching = true;
     try {
+      if (await _openCurrentIptvRecordingIfActive()) return;
       setState(() {
         _currentIndex = newIndex;
         _currentProgram = null;
@@ -1044,6 +1046,16 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     } finally {
       _isSwitching = false;
     }
+  }
+
+  /// A positive recording check replaces a channel-change request with the
+  /// protected framework live stream. An unknown check is deliberately a
+  /// no-op so Jellyfin keeps its normal fail-open tuning behavior.
+  Future<bool> _openCurrentIptvRecordingIfActive() async {
+    final recording = await IptvRecordingGuard().check();
+    if (!mounted || !recording.active) return false;
+    await _leavePlayerFor(Destinations.liveTvCurrentRecording);
+    return true;
   }
 
   Future<bool> _fetchCurrentProgram({bool withRecording = true}) async {
@@ -1420,6 +1432,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     final previousProgram = _currentProgram;
     _isSwitching = true;
     try {
+      if (await _openCurrentIptvRecordingIfActive()) return;
       setState(() {
         _currentIndex = selectedIndex;
         _currentProgram = null;
