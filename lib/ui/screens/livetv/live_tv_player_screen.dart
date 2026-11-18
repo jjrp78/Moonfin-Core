@@ -104,6 +104,8 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   Timer? _hideTimer;
   bool _isStopping = false;
   bool _isSwitching = false;
+  bool _iptvRecordingRedirectInFlight = false;
+  Timer? _iptvRecordingPollTimer;
   bool _isGuidePickerOpen = false;
   final _guideBackController = LiveTvGuideBackController();
   bool _isCarouselOpen = false;
@@ -299,9 +301,13 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         setState(() => _canRewind = canRewind);
       }
     });
-    _playCurrentChannel();
+    unawaited(_startInitialPlayback());
     _scheduleHide();
     _startProgramRefresh();
+    _iptvRecordingPollTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => unawaited(_openCurrentIptvRecordingIfActive()),
+    );
 
     WidgetsBinding.instance.addObserver(this);
     if (PlatformDetection.isMobile) {
@@ -328,6 +334,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _screensaverController.setPlaybackActive(false);
     _carouselPrewarm?.dispose();
     _hideTimer?.cancel();
+    _iptvRecordingPollTimer?.cancel();
     _seekCommitTimer?.cancel();
     _rewindWindowSub?.cancel();
     _programRefreshTimer?.cancel();
@@ -412,7 +419,14 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     }
     if (lifecycleState == AppLifecycleState.resumed) {
       unawaited(_carouselPrewarm?.onAppResumed());
+      unawaited(_openCurrentIptvRecordingIfActive());
     }
+  }
+
+  Future<void> _startInitialPlayback() async {
+    if (await _openCurrentIptvRecordingIfActive()) return;
+    if (!mounted || _isStopping) return;
+    await _playCurrentChannel();
   }
 
   void _onPiPChanged(bool isInPiP) {
@@ -1052,10 +1066,16 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   /// protected framework live stream. An unknown check is deliberately a
   /// no-op so Jellyfin keeps its normal fail-open tuning behavior.
   Future<bool> _openCurrentIptvRecordingIfActive() async {
+    if (_iptvRecordingRedirectInFlight || _isStopping) return true;
     final recording = await IptvRecordingGuard().check();
     if (!mounted || !recording.active) return false;
-    await _leavePlayerFor(Destinations.liveTvCurrentRecording);
-    return true;
+    _iptvRecordingRedirectInFlight = true;
+    try {
+      await _leavePlayerFor(Destinations.liveTvCurrentRecording);
+      return true;
+    } finally {
+      _iptvRecordingRedirectInFlight = false;
+    }
   }
 
   Future<bool> _fetchCurrentProgram({bool withRecording = true}) async {
