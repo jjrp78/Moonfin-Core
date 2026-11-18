@@ -66,7 +66,7 @@ docker run --rm --user 0:0 --entrypoint /bin/bash \
       APKSIGNER=$(find /home/flutter/sdks/android-sdk/build-tools -type f -name apksigner | sort | tail -1)
       apk=build/app/outputs/flutter-apk/app-androidtv-release.apk
       "$AAPT" dump badging "$apk" | grep -q "versionCode='"$TV_BUILD_NUMBER"'"
-      actual=$("$APKSIGNER" verify --print-certs "$apk" | grep "Signer #1 certificate SHA-256 digest:" | cut -d " " -f 7)
+      actual=$("$APKSIGNER" verify --print-certs "$apk" | grep "Signer #1 certificate SHA-256 digest:" | awk "{print \$NF}")
       test "$actual" = '"$EXPECTED_SIGNER_SHA256"'
       cp "$apk" /workspace/'"$OUTPUT_NAME"''
 
