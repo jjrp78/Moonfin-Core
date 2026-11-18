@@ -127,6 +127,19 @@
             </intent-filter>
         </receiver>
 
+        <!-- Only the Android shell / system may ask Moonfin to display this
+             cross-app recording warning. The receiver independently verifies
+             the framework's safe status response before it posts anything. -->
+        <receiver
+            android:name=".IptvRecordingWarningReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="org.moonfin.androidtv.subtitlefix.action.SHOW_IPTV_RECORDING_WARNING" />
+                <action android:name="org.moonfin.androidtv.subtitlefix.action.SHOW_IPTV_RECORDING_WARNING_TEST" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="org.moonfin.androidtv.MoonfinArtProvider"
             android:authorities="${applicationId}.artwork"
