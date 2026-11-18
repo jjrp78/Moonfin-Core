@@ -44,6 +44,7 @@ import 'guide/guide_cell.dart';
 import 'guide/guide_layout_profile.dart';
 import 'guide/guide_selection.dart';
 import 'guide/guide_window.dart';
+import 'iptv_recording_guide_banner.dart';
 import 'live_tv_channel_player_loader.dart';
 
 // Start fetching the next batch of channel programs this many rows before the
@@ -73,7 +74,7 @@ const int _kWindowBarNext = 2;
 const int _kWindowBarSort = 3;
 const int _kWindowBarDate = 4;
 const int _kWindowBarRecordings = 5;
-const int _kWindowBarLast = _kWindowBarRecordings;
+const int _kWindowBarCurrentRecording = 6;
 
 /// Handed to an embedded [LiveTvGuideScreen] so its host's [PopScope] can
 /// offer it a back press before closing the guide outright.
@@ -176,6 +177,10 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
   bool _syncingHorizontalScroll = false;
   bool _isShowingDatePicker = false;
   bool _isOpeningRecordings = false;
+  bool _isRefreshingIptvRecordingStatus = false;
+  IptvRecordingStatus _iptvRecordingStatus =
+      const IptvRecordingStatus.unknown();
+  Timer? _iptvRecordingStatusTimer;
   int? _lastFocusedRowIndex;
   final ValueNotifier<GuideProgram?> _focusedProgram = ValueNotifier(null);
   final ValueNotifier<GuideChannel?> _focusedChannel = ValueNotifier(null);
@@ -262,6 +267,11 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
     _displayClockTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted) setState(() {});
     });
+    unawaited(_refreshIptvRecordingStatus());
+    _iptvRecordingStatusTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => unawaited(_refreshIptvRecordingStatus()),
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -298,6 +308,7 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
   }
 
   Future<void> _resumeGuide(DateTime now) async {
+    unawaited(_refreshIptvRecordingStatus());
     await _vm.reloadIfStale(
       window: _layoutProfile.guideWindow,
       windowStart: guideLeftEdge(now),
@@ -698,7 +709,8 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
 
   /// Moves within the controls row, refusing a move off either end.
   void _focusWindowBar(int index) {
-    if (index < _kWindowBarPrevious || index > _kWindowBarLast) return;
+    if (index < _kWindowBarPrevious) return;
+    if (index > _windowBarLast) index = _windowBarLast;
     if (!_mayTakeFocus) return;
     _cancelPendingVerticalMove();
     _lastWindowBarIndex = index;
@@ -717,6 +729,10 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
 
   /// DOWN out of the genre rail lands on the same button UP left behind.
   void _focusWindowBarFromGenres() => _focusWindowBar(_lastWindowBarIndex);
+
+  int get _windowBarLast => _iptvRecordingStatus.canWatchLive
+      ? _kWindowBarCurrentRecording
+      : _kWindowBarRecordings;
 
   void _focusLastChannelRow() {
     final channels = _vm.filteredChannels;
@@ -829,12 +845,28 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
     if (mounted) await _vm.reloadIfRecordingsChanged();
   }
 
+  Future<void> _openCurrentIptvRecording() =>
+      context.push(Destinations.liveTvCurrentRecording);
+
+  Future<void> _refreshIptvRecordingStatus() async {
+    if (_isRefreshingIptvRecordingStatus) return;
+    _isRefreshingIptvRecordingStatus = true;
+    try {
+      final status = await IptvRecordingGuard().check();
+      if (!mounted) return;
+      setState(() => _iptvRecordingStatus = status);
+    } finally {
+      _isRefreshingIptvRecordingStatus = false;
+    }
+  }
+
   @override
   void dispose() {
     userDataSync.removeListener(_vm.syncChannelUserData);
     widget.backController?._onBackPressed = null;
     _reanchorTimer?.cancel();
     _displayClockTimer?.cancel();
+    _iptvRecordingStatusTimer?.cancel();
     _artworkLookupDebounce?.cancel();
     _artworkPrefetchScrollDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -1049,6 +1081,7 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
     return Column(
       children: [
         _buildTopSection(),
+        _buildIptvRecordingBanner(),
         SizedBox(height: widget.miniPlayerMode ? 8 : 2),
         // The window control sits directly above the grid. The tick strip's
         // left region is only channel-column wide and 22-24 px tall, so it
@@ -1063,10 +1096,79 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
     return Column(
       children: [
         _buildMobileHeader(),
+        _buildIptvRecordingBanner(),
         _buildFilterRail(),
         const SizedBox(height: 8),
         Expanded(child: _buildMobileBody()),
       ],
+    );
+  }
+
+  Widget _buildIptvRecordingBanner() {
+    final banner = IptvRecordingGuideBanner.fromStatus(_iptvRecordingStatus);
+    if (!banner.isVisible) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: Colors.redAccent.withValues(alpha: 0.22),
+          borderRadius: AppRadius.circular(10),
+          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.85)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.fiber_manual_record,
+              color: Colors.redAccent,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    banner.headline,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    banner.detail,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              banner.canWatch
+                  ? 'CURRENT RECORDING AVAILABLE'
+                  : banner.actionLabel,
+              style: TextStyle(
+                color: banner.canWatch ? Colors.white : Colors.white60,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              banner.canWatch ? Icons.lock : Icons.hourglass_top,
+              color: banner.canWatch ? Colors.white : Colors.white60,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1688,6 +1790,15 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
             label: AppLocalizations.of(context).recordings,
             onPressed: _openRecordings,
           ),
+          if (_iptvRecordingStatus.canWatchLive) ...[
+            const SizedBox(width: 4),
+            _windowBarButton(
+              _kWindowBarCurrentRecording,
+              icon: Icons.fiber_manual_record,
+              label: 'Current recording',
+              onPressed: () => unawaited(_openCurrentIptvRecording()),
+            ),
+          ],
         ],
       ),
     );
@@ -1944,13 +2055,23 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
         decoration: BoxDecoration(
           border: Border(bottom: ThemeRegistry.active.borders.cardBorder),
         ),
-        child: EpgChannelCell(
-          logoUrl: imageUrl,
-          name: channel.name,
-          number: channel.number,
-          focused: focused,
-          apple: _apple,
-          isFavorite: channel.isFavorite,
+        child: Stack(
+          children: [
+            EpgChannelCell(
+              logoUrl: imageUrl,
+              name: channel.name,
+              number: channel.number,
+              focused: focused,
+              apple: _apple,
+              isFavorite: channel.isFavorite,
+            ),
+            if (_iptvRecordingStatus.active)
+              const Positioned(
+                top: 3,
+                right: 3,
+                child: Icon(Icons.lock, color: Colors.redAccent, size: 13),
+              ),
+          ],
         ),
       ),
     );
