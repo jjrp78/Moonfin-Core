@@ -11,7 +11,7 @@ data class IptvRecordingWarning(
     val artworkUrl: String? = null,
 ) {
     companion object {
-        const val DISPLAY_TIMEOUT_MILLIS = 8_000L
+        const val DISPLAY_TIMEOUT_MILLIS = 15_000L
     }
 }
 

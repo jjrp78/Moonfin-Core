@@ -23,7 +23,7 @@ class IptvRecordingWarningPolicyTest {
         requireNotNull(warning)
         assertEquals("Recording starts in 2 min", warning.title)
         assertEquals("TNT Sports AR · Boca Juniors vs. Banfield", warning.detail)
-        assertEquals(8_000L, warning.timeoutMillis)
+        assertEquals(15_000L, warning.timeoutMillis)
         assertTrue(warning.silent)
         assertEquals("http://192.168.1.4:5000/artwork/boca.jpg", warning.artworkUrl)
     }
