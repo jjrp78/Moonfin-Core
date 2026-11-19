@@ -8,6 +8,7 @@ data class IptvRecordingWarning(
     val detail: String,
     val timeoutMillis: Long = DISPLAY_TIMEOUT_MILLIS,
     val silent: Boolean = true,
+    val artworkUrl: String? = null,
 ) {
     companion object {
         const val DISPLAY_TIMEOUT_MILLIS = 8_000L
@@ -35,15 +36,26 @@ object IptvRecordingWarningPolicy {
                 .joinToString(" · ")
                 .take(MAX_DETAIL_LENGTH)
             if (detail.isEmpty()) return null
+            val artworkUrl = json.optString("poster_url").trim()
+                .takeIf { it.startsWith(TRUSTED_ARTWORK_PREFIX) }
 
             IptvRecordingWarning(
                 title = "Recording starts in ${minutesLabel(secondsUntil)}",
                 detail = detail,
+                artworkUrl = artworkUrl,
             )
         }.getOrNull()
+
+    fun testWarning(): IptvRecordingWarning = IptvRecordingWarning(
+        title = "Recording starts in 2 min",
+        detail = "SHIELD notification image test",
+        artworkUrl = TEST_ARTWORK_URL,
+    )
 
     private fun minutesLabel(secondsUntil: Long): String =
         if (secondsUntil > 60) "2 min" else "1 min"
 
     private const val MAX_DETAIL_LENGTH = 180
+    private const val TRUSTED_ARTWORK_PREFIX = "http://192.168.1.4:5000/artwork/"
+    private const val TEST_ARTWORK_URL = "http://192.168.1.4:5000/artwork/boca.jpg"
 }
